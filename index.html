@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test-Trainer Pro - AI Powered</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .card-grad { background: white; transition: all 0.2s; border: 1px solid #e2e8f0; cursor: pointer; }
+        .card-grad:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #3b82f6; }
+        .ai-glow { box-shadow: 0 0 15px rgba(147, 51, 234, 0.2); border: 1px solid rgba(147, 51, 234, 0.4); }
+        
+        .simon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 320px; height: 320px; }
+        .simon-btn { aspect-ratio: 1; border-radius: 16px; transition: all 0.2s; background: white; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+        .simon-btn.active { background: #9333ea !important; transform: scale(0.9); box-shadow: 0 0 20px #9333ea; border-color: transparent; }
+        .simon-btn.correct { background: #10b981 !important; color: white; }
+        .simon-btn.wrong { background: #ef4444 !important; color: white; }
+        
+        .tech-sub-card { @apply p-4 border rounded-xl hover:bg-blue-50 transition-colors cursor-pointer text-left flex items-center gap-3; }
+        
+        .emoji-pop { animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1.5); opacity: 1; }
+        }
+
+        #api-setup { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- API Key Setup Overlay -->
+    <div id="api-setup" class="hidden">
+        <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl">
+            <h2 class="text-2xl font-bold mb-4">KI-Setup erforderlich</h2>
+            <p class="text-slate-600 mb-6 text-sm">Füge deinen Gemini API-Key aus Google AI Studio ein, um die KI-Aufgaben freizuschalten.</p>
+            <input type="password" id="api-key-input" class="w-full p-4 border rounded-xl mb-4 outline-none focus:ring-2 focus:ring-purple-500" placeholder="Key hier einfügen (AI Studio)...">
+            <button onclick="saveApiKey()" class="w-full bg-purple-600 text-white py-4 rounded-xl font-bold hover:bg-purple-700 transition-all">Starten & Key speichern</button>
+            <p class="mt-4 text-[10px] text-center text-slate-400">Hinweis: Dein Key bleibt nur lokal in diesem Browser gespeichert.</p>
+        </div>
+    </div>
+
+    <div id="app" class="max-w-6xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-2xl font-bold text-slate-800 tracking-tight">AusbildungsPark Trainer ✨ Full AI</h1>
+                <p class="text-slate-500" id="status-text">Lade Trainer...</p>
+            </div>
+            <div class="flex gap-8">
+                <div class="text-center">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Richtig</span>
+                    <div id="correct-count" class="text-2xl font-bold text-emerald-600 leading-none">0</div>
+                </div>
+                <div class="text-center">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gesamt</span>
+                    <div id="total-count" class="text-2xl font-bold text-slate-700 leading-none">0</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- HAUPTMENÜ -->
+        <div id="main-menu" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+
+        <!-- UNTERMENÜS -->
+        <div id="sub-menu" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-lg border border-slate-100">
+            <h2 id="sub-menu-title" class="col-span-full text-xl font-bold mb-4 flex items-center gap-2 text-purple-600">
+                <button onclick="backToMenu()" class="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                Untermenü
+            </h2>
+            <div id="sub-menu-content" class="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- SPIEL-CONTAINER -->
+        <div id="game-container" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="backToMenu()" class="flex items-center text-slate-500 hover:text-purple-600 font-medium transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Zurück zum Menü
+                </button>
+                <div id="ai-status" class="hidden text-xs font-bold text-purple-600 animate-pulse flex items-center">
+                    <span class="mr-2">✨ Gemini erstellt Aufgabe...</span>
+                </div>
+            </div>
+            
+            <div id="game-content" class="bg-white p-6 md:p-12 rounded-3xl shadow-xl border border-slate-200 min-h-[500px] flex flex-col justify-center items-center relative overflow-hidden text-center">
+            </div>
+
+            <div id="explanation-box" class="hidden mt-6 bg-purple-50 border border-purple-100 p-6 rounded-2xl transition-all">
+                <h4 class="text-purple-800 font-bold mb-2 flex items-center">
+                    <span class="mr-2">✨</span> KI-Erklärung
+                </h4>
+                <p id="explanation-text" class="text-purple-900 text-sm leading-relaxed"></p>
+            </div>
+        </div>
+
+        <div id="feedback-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-full shadow-2xl transform transition-all duration-300 translate-y-32 opacity-0 pointer-events-none text-white font-bold text-lg z-50">
+        </div>
+    </div>
+
+    <script>
+        let USER_API_KEY = localStorage.getItem('gemini_trainer_key') || "";
+        let currentScore = 0;
+        let totalAttempts = 0;
+        let activeGame = null;
+        let lastCorrectValue = null;
+        let lastQuestionContext = "";
+        let gameLevel = 3;
+        let isGamePlaying = false;
+        let simonSequence = [];
+        let userSequence = [];
+        const availableEmojis = ['🍎', '🚀', '🐘', '🎸', '🍦', '🍕', '⚽', '🚗', '🔑', '🌈', '💎', '🎨'];
+
+        const categories = [
+            { id: 'math', name: 'Mathematik ✨', icon: '📐', desc: 'Textaufgaben & Rechnen' },
+            { id: 'logic', name: 'Logik ✨', icon: '🧩', desc: 'Zahlenreihen & Muster' },
+            { id: 'tech_menu', name: 'Technik ✨', icon: '⚙️', desc: 'Mechanik & Physik' },
+            { id: 'memory_menu', name: 'Merkfähigkeit ✨', icon: '🧠', desc: 'Simon, Emojis & Fakten' },
+            { id: 'lang', name: 'Sprachprofi ✨', icon: '✍️', desc: 'Rechtschreibung & Grammatik' },
+            { id: 'general', name: 'Allgemeinwissen ✨', icon: '🌍', desc: 'Querbeet Wissen' },
+            { id: 'career', name: 'Karriere-Coach ✨', icon: '👔', desc: 'Interview Training' }
+        ];
+
+        function saveApiKey() {
+            const val = document.getElementById('api-key-input').value.trim();
+            if (val) {
+                localStorage.setItem('gemini_trainer_key', val);
+                USER_API_KEY = val;
+                document.getElementById('api-setup').classList.add('hidden');
+                initMenu();
+            }
+        }
+
+        function checkSetup() {
+            if (!USER_API_KEY) {
+                document.getElementById('api-setup').classList.remove('hidden');
+            } else {
+                initMenu();
+            }
+        }
+
+        async function callGemini(prompt, systemInstruction = "") {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${USER_API_KEY}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction || "Du bist ein hilfreicher Test-Trainer." }] }
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+                return data.candidates?.[0]?.content?.parts?.[0]?.text;
+            } catch (e) {
+                console.error("API Error:", e);
+                return null;
+            }
+        }
+
+        async function loadNewChallenge() {
+            document.getElementById('explanation-box').classList.add('hidden');
+            if (activeGame === 'simon') return startSimonSays();
+            if (activeGame === 'emoji_memory') return startEmojiMemory();
+            if (activeGame === 'facts') return startFactsGame();
+            
+            document.getElementById('ai-status').classList.remove('hidden');
+            const content = document.getElementById('game-content');
+            content.innerHTML = `<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div><p>Erstelle neue Aufgabe...</p>`;
+
+            let prompt = "";
+            let system = "Antworte NUR mit validem JSON: { \"question\": \"...\", \"answer\": \"...\" }. Halte Fragen kurz und prägnant.";
+
+            switch(activeGame) {
+                case 'math': prompt = "Erstelle eine moderate Mathe-Textaufgabe. Antwort ist eine Zahl."; break;
+                case 'logic': prompt = "Erstelle eine logische Zahlenreihe. Antwort ist die nächste Zahl."; break;
+                case 'physics': prompt = "Erstelle eine Physik-Frage zum Alltag. Antwort ist 1 Wort."; break;
+                case 'gears': prompt = "Frage zu Zahnrädern (Drehrichtung). Antwort: rechts oder links."; break;
+                case 'lang': prompt = "Präsentiere einen Satz mit genau einem Rechtschreibfehler. Frage nach der korrekten Schreibweise dieses Wortes."; break;
+                case 'general': prompt = "Schätzfrage oder Allgemeinwissen-Fakt. Antwort kurz."; break;
+                case 'career': prompt = "Stelle eine typische Frage aus einem Vorstellungsgespräch."; break;
+            }
+
+            const resultText = await callGemini(prompt, system);
+            document.getElementById('ai-status').classList.add('hidden');
+
+            if (!resultText) {
+                content.innerHTML = `<p class="text-rose-500">Fehler beim Laden. Bitte API-Key prüfen.</p>`;
+                return;
+            }
+
+            try {
+                const cleanJson = resultText.replace(/```json|```/g, "").trim();
+                const data = JSON.parse(cleanJson);
+                lastQuestionContext = data.question;
+                lastCorrectValue = data.answer;
+                
+                content.innerHTML = `
+                    <h2 class="text-xs font-bold text-purple-400 mb-6 uppercase tracking-widest">${activeGame}</h2>
+                    <p class="text-2xl font-medium mb-10 max-w-2xl">${data.question}</p>
+                    <div class="flex flex-col items-center w-full max-w-sm">
+                        <input type="text" id="ans" onkeyup="handleKeyUp(event)" class="w-full text-center p-4 text-xl border-b-2 outline-none mb-8 focus:border-purple-500" placeholder="Deine Antwort...">
+                        <button onclick="checkAnswer()" class="bg-purple-600 hover:bg-purple-700 text-white px-10 py-4 rounded-2xl font-bold w-full shadow-lg">Prüfen</button>
+                    </div>
+                `;
+                document.getElementById('ans').focus();
+            } catch (e) { 
+                console.error("JSON Parse Error", e);
+                loadNewChallenge(); 
+            }
+        }
+
+        async function startFactsGame() {
+            const content = document.getElementById('game-content');
+            document.getElementById('ai-status').classList.remove('hidden');
+            const system = "Antworte NUR mit JSON: { \"items\": [\"Fakt 1\", \"Fakt 2\", \"Fakt 3\", \"Fakt 4\"], \"question\": \"Frage zu einem der Fakten\", \"answer\": \"Lösung\" }";
+            const result = await callGemini("Generiere 4 kurze, interessante Fakten zum Einprägen.", system);
+            
+            try {
+                const data = JSON.parse(result.replace(/```json|```/g, "").trim());
+                document.getElementById('ai-status').classList.add('hidden');
+                lastCorrectValue = data.answer; 
+                lastQuestionContext = data.question;
+
+                content.innerHTML = `
+                    <h2 class="text-indigo-500 font-bold mb-6">Merk dir das! (10 Sek.)</h2>
+                    <div class="space-y-3 mb-10 w-full max-w-md">
+                        ${data.items.map(i => `<div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-left text-sm font-medium text-slate-700 shadow-sm">${i}</div>`).join('')}
+                    </div>
+                    <div class="w-full max-w-md bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div id="fact-progress" class="bg-indigo-500 h-full w-full transition-all linear" style="transition-duration: 10000ms; width: 100%"></div>
+                    </div>
+                `;
+                
+                setTimeout(() => { if(document.getElementById('fact-progress')) document.getElementById('fact-progress').style.width = '0%'; }, 100);
+                
+                setTimeout(() => {
+                    if (activeGame !== 'facts') return;
+                    content.innerHTML = `
+                        <p class="text-2xl font-medium mb-10">${data.question}</p>
+                        <input type="text" id="ans" onkeyup="handleKeyUp(event)" class="w-full text-center p-4 border-b-2 outline-none mb-8 focus:border-indigo-500" placeholder="Deine Antwort...">
+                        <button onclick="checkAnswer()" class="bg-indigo-600 text-white px-10 py-4 rounded-2xl w-full font-bold shadow-lg">Antworten</button>
+                    `;
+                    document.getElementById('ans').focus();
+                }, 10000);
+            } catch(e) { loadNewChallenge(); }
+        }
+
+        async function startEmojiMemory() {
+            const content = document.getElementById('game-content');
+            isGamePlaying = false;
+            userSequence = [];
+            simonSequence = Array.from({length: gameLevel}, () => availableEmojis[Math.floor(Math.random() * availableEmojis.length)]);
+            
+            for (let i = 0; i < simonSequence.length; i++) {
+                content.innerHTML = `<div class="text-[120px] emoji-pop">${simonSequence[i]}</div>`;
+                await new Promise(r => setTimeout(r, 1200));
+                content.innerHTML = "";
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            let gridEmojis = [...new Set([...simonSequence, ...availableEmojis])].slice(0, 9).sort(() => Math.random() - 0.5);
+            content.innerHTML = `
+                <h2 class="text-purple-600 font-bold mb-6 italic">In welcher Reihenfolge erschienen sie?</h2>
+                <div class="simon-grid">${gridEmojis.map(emoji => `<button onclick="handleEmojiClick('${emoji}', this)" class="simon-btn shadow-sm">${emoji}</button>`).join('')}</div>
+                <div id="emoji-progress" class="mt-8 flex gap-2">${simonSequence.map(() => `<div class="w-3 h-3 rounded-full bg-slate-200"></div>`).join('')}</div>
+            `;
+            isGamePlaying = true;
+        }
+
+        function handleEmojiClick(emoji, btn) {
+            if (!isGamePlaying) return;
+            if (emoji === simonSequence[userSequence.length]) {
+                userSequence.push(emoji);
+                btn.classList.add('correct');
+                document.getElementById('emoji-progress').children[userSequence.length-1].classList.replace('bg-slate-200', 'bg-emerald-500');
+                if (userSequence.length === simonSequence.length) {
+                    gameLevel++; currentScore++; totalAttempts++; updateDisplay(); showFeedback(true); setTimeout(startEmojiMemory, 1500);
+                }
+            } else {
+                btn.classList.add('wrong'); totalAttempts++; updateDisplay(); showFeedback(false); gameLevel = 3; setTimeout(startEmojiMemory, 2000);
+            }
+        }
+
+        function startSimonSays() {
+            const content = document.getElementById('game-content');
+            content.innerHTML = `
+                <h2 class="text-purple-600 font-bold mb-4 uppercase tracking-widest">Simon Says - Level ${gameLevel-2}</h2>
+                <div class="simon-grid">${Array.from({length: 9}).map((_, i) => `<button id="s-${i}" onclick="handleSimonClick(${i})" class="simon-btn bg-slate-50 border-2"></button>`).join('')}</div>
+                <p id="simon-msg" class="mt-6 font-bold text-slate-400">Pass auf...</p>
+            `;
+            generateSimonSequence();
+        }
+
+        async function generateSimonSequence() {
+            isGamePlaying = false; 
+            simonSequence = Array.from({length: gameLevel}, () => Math.floor(Math.random() * 9)); 
+            userSequence = [];
+            await new Promise(r => setTimeout(r, 1000));
+            for (let id of simonSequence) {
+                const btn = document.getElementById(`s-${id}`);
+                if (btn) {
+                    btn.classList.add('active'); 
+                    await new Promise(r => setTimeout(r, 600)); 
+                    btn.classList.remove('active'); 
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+            isGamePlaying = true; 
+            const msg = document.getElementById('simon-msg');
+            if(msg) msg.innerText = "Jetzt du!";
+        }
+
+        function handleSimonClick(id) {
+            if (!isGamePlaying) return;
+            userSequence.push(id);
+            if (id === simonSequence[userSequence.length - 1]) {
+                document.getElementById(`s-${id}`).classList.add('active'); 
+                setTimeout(() => document.getElementById(`s-${id}`).classList.remove('active'), 200);
+                if (userSequence.length === simonSequence.length) {
+                    gameLevel++; currentScore++; totalAttempts++; updateDisplay(); showFeedback(true); setTimeout(startSimonSays, 1500);
+                }
+            } else {
+                document.getElementById(`s-${id}`).classList.add('wrong'); 
+                totalAttempts++; updateDisplay(); showFeedback(false); gameLevel = 3; setTimeout(startSimonSays, 2000);
+            }
+        }
+
+        function checkAnswer() {
+            const input = document.getElementById('ans');
+            if (!input) return;
+            const userVal = input.value.trim().toLowerCase();
+            const correctVal = String(lastCorrectValue).trim().toLowerCase();
+            
+            let isCorrect = (userVal === correctVal) || (userVal.length >= 3 && correctVal.includes(userVal));
+            totalAttempts++;
+            
+            if(isCorrect) { 
+                currentScore++; 
+                showFeedback(true); 
+                setTimeout(loadNewChallenge, 1500); 
+            } else { 
+                showFeedback(false); 
+                explainMistake(userVal, lastCorrectValue); 
+                setTimeout(loadNewChallenge, 8000); 
+            }
+            updateDisplay();
+        }
+
+        async function explainMistake(wrong, correct) {
+            const box = document.getElementById('explanation-box');
+            const text = document.getElementById('explanation-text');
+            box.classList.remove('hidden');
+            text.innerText = "Lösung: " + correct + ". Lade KI-Erklärung...";
+            
+            const exp = await callGemini(`Die Frage war: "${lastQuestionContext}". Die richtige Antwort ist "${correct}". Erkläre kurz und einfach warum.`, "Du bist ein geduldiger Lehrer.");
+            if(exp) text.innerText = exp;
+        }
+
+        function handleCategoryClick(id) {
+            const main = document.getElementById('main-menu');
+            const sub = document.getElementById('sub-menu');
+            const content = document.getElementById('sub-menu-content');
+            if (id === 'tech_menu') {
+                main.classList.add('hidden'); sub.classList.remove('hidden');
+                content.innerHTML = `
+                    <div onclick="startGame('gears')" class="tech-sub-card border-amber-200">⚙️ Mechanik & Zahnräder</div>
+                    <div onclick="startGame('physics')" class="tech-sub-card border-emerald-200">⚡ Physik & Logik</div>
+                `;
+            } else if (id === 'memory_menu') {
+                main.classList.add('hidden'); sub.classList.remove('hidden');
+                content.innerHTML = `
+                    <div onclick="startGame('facts')" class="tech-sub-card border-indigo-200">📄 Fakten einprägen</div>
+                    <div onclick="startGame('simon')" class="tech-sub-card border-purple-200">🔘 Simon Says</div>
+                    <div onclick="startGame('emoji_memory')" class="tech-sub-card border-pink-200">🚀 Emoji-Folgen</div>
+                `;
+            } else { startGame(id); }
+        }
+
+        function startGame(id) {
+            activeGame = id; gameLevel = 3;
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('sub-menu').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            loadNewChallenge();
+        }
+
+        function backToMenu() {
+            document.getElementById('main-menu').classList.remove('hidden');
+            document.getElementById('sub-menu').classList.add('hidden');
+            document.getElementById('game-container').classList.add('hidden');
+            activeGame = null;
+        }
+
+        function updateDisplay() {
+            document.getElementById('correct-count').innerText = currentScore;
+            document.getElementById('total-count').innerText = totalAttempts;
+        }
+
+        function showFeedback(ok) {
+            const t = document.getElementById('feedback-toast');
+            t.innerText = ok ? "Richtig! ✨" : "Leider falsch... ❌";
+            t.className = `fixed bottom-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-full shadow-2xl transition-all duration-300 text-white font-bold text-lg z-50 opacity-100 ${ok ? 'bg-emerald-500' : 'bg-rose-500'}`;
+            setTimeout(() => t.classList.add('opacity-0'), 2000);
+        }
+
+        function initMenu() {
+            document.getElementById('status-text').innerText = "Wähle eine Kategorie zum Üben!";
+            document.getElementById('main-menu').innerHTML = categories.map(cat => `
+                <div onclick="handleCategoryClick('${cat.id}')" class="card-grad p-6 rounded-3xl flex flex-col items-center text-center ai-glow">
+                    <div class="text-4xl mb-4">${cat.icon}</div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-1">${cat.name}</h3>
+                    <p class="text-slate-400 text-[10px] uppercase font-bold tracking-tight">${cat.desc}</p>
+                </div>
+            `).join('');
+        }
+
+        function handleKeyUp(e) { if(e.key === "Enter") checkAnswer(); }
+        window.onload = checkSetup;
+    </script>
+</body>
+</html>
